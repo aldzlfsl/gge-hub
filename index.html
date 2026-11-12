@@ -176,7 +176,9 @@ function load(name) {
       resolve(f);
     };
     f.addEventListener('load', onLoad);
-    f.srcdoc = decode($('src-' + name).textContent.trim());
+    // Les liens internes (#tuto, #liste…) d'un site embarqué doivent rester dans son cadre :
+    // sans cette base, ils pointeraient vers l'adresse de la page d'accueil et rouvriraient tout le hub.
+    f.srcdoc = decode($('src-' + name).textContent.trim()).replace(/<head[^>]*>/i, m => m + '<base href="about:srcdoc">');
   });
   return loaded[name];
 }
@@ -184,6 +186,13 @@ function load(name) {
 // Branchements « de l'extérieur » : les sites eux-mêmes ne sont pas modifiés
 function hook(name, f) {
   const d = f.contentDocument;
+  // filet de sécurité : un lien interne (#tuto, #liste…) reste toujours dans son cadre
+  d.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
+    e.preventDefault();
+    try { f.contentWindow.location.hash = a.getAttribute('href'); } catch(err) {}
+  }, true);
   if (name !== 'lacis') return;
   // l'accueil reprend le thème sombre / clair de la Liste lacis
   const root = d.documentElement;
